@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install API dependencies
+        run: pip install -r requirements-api.txt
+
+      - name: Install pipeline deps
+        run: pip install anndata numpy pandas matplotlib seaborn scikit-learn
+
+      - name: Run pipeline smoke test (demo mode)
+        working-directory: .
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python -c "
+          from pipeline.runner import run_pipeline
+          import tempfile, os
+          d = tempfile.mkdtemp()
+          r = run_pipeline('test-job', '/dev/null', None, d, demo_mode=True)
+          assert r['communication_edges'], 'No edges produced'
+          assert r['qc_report'], 'No QC report'
+          print('Pipeline smoke test passed')
+          "
+
+      - name: Start API and health check
+        env:
+          PIPELINE_DEMO_MODE: "true"
+          MPLBACKEND: Agg
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          uvicorn app.main:app --host 127.0.0.1 --port 8000 --app-dir backend &
+          sleep 3
+          curl -f http://127.0.0.1:8000/api/v1/health
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
