@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Box, Typography } from "@mui/material";
-import PipelineProgress from "@/components/PipelineProgress";
-import ResultsDashboard from "@/components/ResultsDashboard";
+import OverviewPanel from "@/components/panels/OverviewPanel";
+import CellsPanel from "@/components/panels/CellsPanel";
+import CommunicationPanel from "@/components/panels/CommunicationPanel";
+import LiteraturePanel from "@/components/panels/LiteraturePanel";
+import ChatPanel from "@/components/panels/ChatPanel";
+import ReportPanel from "@/components/panels/ReportPanel";
 import {
   getJobResults,
   getJobStatus,
@@ -58,90 +61,35 @@ export default function ProjectWorkspace({
   const { jobStatus, results } = useProjectJob(jobId);
 
   if (!jobStatus) {
-    return <Typography>Loading project…</Typography>;
+    return <div className="empty-state">Loading project…</div>;
   }
 
   if (tab === "overview") {
-    return (
-      <Box>
-        <Typography variant="h5" gutterBottom>
-          Overview
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Job {jobId}
-        </Typography>
-        <PipelineProgress job={jobStatus} />
-        {jobStatus.error && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            {jobStatus.error}
-          </Alert>
-        )}
-        {results?.status === "completed" && (
-          <Box sx={{ mt: 3 }}>
-            <ResultsDashboard results={results} />
-          </Box>
-        )}
-      </Box>
-    );
-  }
-
-  if (tab === "cells" && results) {
-    return (
-      <Box>
-        <Typography variant="h5" gutterBottom>
-          Cell Types
-        </Typography>
-        <ResultsDashboard results={results} />
-      </Box>
-    );
-  }
-
-  if (tab === "communication" && results) {
-    return (
-      <Box>
-        <Typography variant="h5" gutterBottom>
-          Cell–Cell Communication (NicheNet)
-        </Typography>
-        <ResultsDashboard results={results} />
-      </Box>
-    );
-  }
-
-  if (tab === "report" && results?.exports) {
-    const e = results.exports;
-    return (
-      <Box>
-        <Typography variant="h5" gutterBottom>
-          Report & Provenance
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Publication-ready exports with methods paragraph and provenance JSON.
-        </Typography>
-        <ResultsDashboard results={results} />
-      </Box>
-    );
+    return <OverviewPanel job={jobStatus} results={results} />;
   }
 
   if (tab === "literature") {
-    return (
-      <Alert severity="info">
-        Literature evidence panel — Phase 2. PubMed/Europe PMC links per ligand–receptor edge
-        (no AI summarization until Phase 3).
-      </Alert>
-    );
+    if (jobStatus.status !== "completed") {
+      return <div className="alert alert-info">Analysis in progress. Literature loads when complete.</div>;
+    }
+    return <LiteraturePanel jobId={jobId} />;
   }
 
   if (tab === "chat") {
+    return <ChatPanel jobId={jobId} />;
+  }
+
+  if (jobStatus.status !== "completed" || !results) {
     return (
-      <Alert severity="info">
-        Research chat — Phase 4. RAG over your analysis results and cited literature.
-      </Alert>
+      <div className="alert alert-info">
+        Analysis in progress. Check Overview for pipeline status.
+      </div>
     );
   }
 
-  if (jobStatus.status !== "completed") {
-    return <Alert severity="info">Analysis in progress. Check Overview for status.</Alert>;
-  }
+  if (tab === "cells") return <CellsPanel results={results} />;
+  if (tab === "communication") return <CommunicationPanel results={results} />;
+  if (tab === "report") return <ReportPanel results={results} />;
 
-  return <Alert severity="warning">Results not available.</Alert>;
+  return <div className="alert alert-info">Select a tab from the sidebar.</div>;
 }

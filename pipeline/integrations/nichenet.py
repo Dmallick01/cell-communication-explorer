@@ -42,7 +42,7 @@ def run_nichenet(
     adata: ad.AnnData,
     output_dir: Path,
     reference_dir: Path,
-    top_sender_receiver_pairs: int = 5,
+    top_sender_receiver_pairs: int = 15,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     ok, msg = nichenet_available(reference_dir)
     if not ok:

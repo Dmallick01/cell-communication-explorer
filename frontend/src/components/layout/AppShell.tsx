@@ -2,133 +2,126 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Box,
-  Drawer,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Toolbar,
-  Typography,
-  AppBar,
-} from "@mui/material";
-import ScienceIcon from "@mui/icons-material/Science";
-import FolderIcon from "@mui/icons-material/Folder";
-import AddIcon from "@mui/icons-material/Add";
-import DashboardIcon from "@mui/icons-material/Dashboard";
-import ShareIcon from "@mui/icons-material/Share";
-import AutoStoriesIcon from "@mui/icons-material/AutoStories";
-import ForumIcon from "@mui/icons-material/Forum";
-import ArticleIcon from "@mui/icons-material/Article";
-
-const DRAWER_WIDTH = 240;
+import { useEffect, useState } from "react";
+import AppToolbar from "@/components/layout/AppToolbar";
+import { getJobResults } from "@/lib/api";
 
 const NAV = [
-  { label: "Projects", href: "/projects", icon: <FolderIcon /> },
-  { label: "New analysis", href: "/projects/new", icon: <AddIcon /> },
+  { label: "Projects", href: "/projects" },
+  { label: "New analysis", href: "/projects/new" },
 ];
 
 const PROJECT_TABS = [
-  { label: "Overview", slug: "", icon: <DashboardIcon /> },
-  { label: "Cells", slug: "cells", icon: <ScienceIcon /> },
-  { label: "Communication", slug: "communication", icon: <ShareIcon /> },
-  { label: "Literature", slug: "literature", icon: <AutoStoriesIcon /> },
-  { label: "Chat", slug: "chat", icon: <ForumIcon /> },
-  { label: "Report", slug: "report", icon: <ArticleIcon /> },
+  { label: "Overview", slug: "" },
+  { label: "Cells", slug: "cells" },
+  { label: "Communication", slug: "communication" },
+  { label: "Literature", slug: "literature" },
+  { label: "Chat", slug: "chat" },
+  { label: "Report", slug: "report" },
 ];
 
 export default function AppShell({
   children,
   projectId,
+  queue,
 }: {
   children: React.ReactNode;
   projectId?: string;
+  queue?: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [projectTitle, setProjectTitle] = useState<string | undefined>();
+  const [projectMeta, setProjectMeta] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (!projectId) {
+      setProjectTitle(undefined);
+      setProjectMeta(undefined);
+      return;
+    }
+    getJobResults(projectId)
+      .then((r) => {
+        setProjectTitle(r.project_name || `Analysis ${projectId.slice(0, 8)}`);
+        const parts = [r.tissue, r.disease].filter(Boolean);
+        setProjectMeta(parts.join(" · ") || `Job ${projectId.slice(0, 8)}…`);
+      })
+      .catch(() => {
+        setProjectTitle(`Analysis ${projectId.slice(0, 8)}`);
+        setProjectMeta(`Job ${projectId.slice(0, 8)}…`);
+      });
+  }, [projectId]);
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
-      <AppBar
-        position="fixed"
-        sx={{ zIndex: (t) => t.zIndex.drawer + 1, bgcolor: "primary.main" }}
-      >
-        <Toolbar>
-          <ScienceIcon sx={{ mr: 1.5 }} />
-          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700 }}>
-            Cell Communication Explorer
-          </Typography>
-          <Typography variant="caption" sx={{ opacity: 0.85 }}>
-            Research platform
-          </Typography>
-        </Toolbar>
-      </AppBar>
-
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: DRAWER_WIDTH,
-          flexShrink: 0,
-          [`& .MuiDrawer-paper`]: {
-            width: DRAWER_WIDTH,
-            boxSizing: "border-box",
-            borderRight: "1px solid",
-            borderColor: "divider",
-            bgcolor: "background.paper",
-          },
-        }}
-      >
-        <Toolbar />
-        <List sx={{ px: 1 }}>
-          {NAV.map((item) => (
-            <ListItemButton
-              key={item.href}
-              component={Link}
-              href={item.href}
-              selected={pathname === item.href}
-              sx={{ borderRadius: 2, mb: 0.5 }}
-            >
-              <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          ))}
-        </List>
-
+    <>
+      <AppToolbar />
+      <div className="app-shell">
         {projectId && (
-          <>
-            <Typography
-              variant="overline"
-              sx={{ px: 2, pt: 2, pb: 1, color: "text.secondary", display: "block" }}
-            >
-              Analysis
-            </Typography>
-            <List sx={{ px: 1 }}>
-              {PROJECT_TABS.map((tab) => {
-                const href =
-                  tab.slug === ""
-                    ? `/projects/${projectId}`
-                    : `/projects/${projectId}/${tab.slug}`;
-                return (
-                  <ListItemButton
-                    key={tab.slug}
-                    component={Link}
-                    href={href}
-                    selected={pathname === href}
-                    sx={{ borderRadius: 2, mb: 0.5 }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 36 }}>{tab.icon}</ListItemIcon>
-                    <ListItemText primary={tab.label} />
-                  </ListItemButton>
-                );
-              })}
-            </List>
-          </>
+          <header className="app-header">
+            <div>
+              <h1>{projectTitle || "Analysis"}</h1>
+              <p className="header-meta">
+                {projectMeta || `Job ${projectId.slice(0, 8)}…`}
+              </p>
+            </div>
+            <div className="header-actions">
+              <Link href="/projects/new" className="btn btn-primary">
+                New analysis
+              </Link>
+              <Link href="/projects" className="btn">
+                All projects
+              </Link>
+            </div>
+          </header>
         )}
-      </Drawer>
 
-      <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8, maxWidth: "100%" }}>
-        {children}
-      </Box>
-    </Box>
+        <div className="main-layout">
+          <aside className="sidebar-panel">
+            <h2 className="sidebar-title">Library</h2>
+            <ul className="nav-list">
+              {NAV.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`btn ${pathname === item.href ? "active" : ""}`}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+
+            {projectId && (
+              <>
+                <h2 className="sidebar-title" style={{ marginTop: 24 }}>
+                  Analysis
+                </h2>
+                <ul className="nav-list">
+                  {PROJECT_TABS.map((tab) => {
+                    const href =
+                      tab.slug === ""
+                        ? `/projects/${projectId}`
+                        : `/projects/${projectId}/${tab.slug}`;
+                    return (
+                      <li key={tab.slug}>
+                        <Link
+                          href={href}
+                          className={`btn ${pathname === href ? "active" : ""}`}
+                        >
+                          {tab.label}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
+          </aside>
+
+          <main className="content-area">{children}</main>
+
+          {queue && <aside className="queue-panel">{queue}</aside>}
+        </div>
+      </div>
+    </>
   );
 }

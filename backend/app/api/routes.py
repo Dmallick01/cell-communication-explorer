@@ -1,3 +1,4 @@
+import asyncio
 import shutil
 import zipfile
 from pathlib import Path
@@ -10,12 +11,17 @@ from fastapi.responses import FileResponse
 from app.core.config import settings
 from app.core.job_store import job_store
 from app.models.schemas import (
+    ChatRequest,
+    ChatResponse,
     JobCreateResponse,
     JobResultsResponse,
     JobStatus,
     JobStatusResponse,
+    LiteratureResponse,
     PipelineStep,
 )
+from app.services.chat import answer_question
+from app.services.literature import literature_for_edges
 from app.services.pipeline_runner import run_job_pipeline
 
 router = APIRouter()
@@ -34,6 +40,9 @@ ARTIFACT_FILES = {
     "session_summary.json",
     "provenance.json",
     "methods.txt",
+    "de_genes.csv",
+    "umap_coords.json",
+    "de_summary.json",
 }
 
 
@@ -63,6 +72,8 @@ def _public_results(job_id: str, results: dict) -> dict:
         "session_summary": "session_summary.json",
         "provenance": "provenance.json",
         "methods": "methods.txt",
+        "de_genes": "de_genes.csv",
+        "umap_coords": "umap_coords.json",
     }
     out["exports"] = {
         key: _artifact_url(job_id, filename)
@@ -102,6 +113,9 @@ async def list_jobs(limit: int = 50) -> list[dict]:
             "created_at": j.created_at.isoformat() if j.created_at else None,
             "updated_at": j.updated_at.isoformat() if j.updated_at else None,
             "error": j.error,
+            "project_name": (j.results_json or {}).get("project_name"),
+            "tissue": (j.results_json or {}).get("tissue"),
+            "disease": (j.results_json or {}).get("disease"),
         }
         for j in jobs
     ]
@@ -113,6 +127,9 @@ async def create_job(
     data_file: UploadFile = File(...),
     metadata_file: UploadFile | None = File(None),
     demo: bool = Form(False),
+    project_name: str = Form(""),
+    tissue: str = Form(""),
+    disease: str = Form(""),
 ) -> JobCreateResponse:
     if demo and not settings.development_only:
         raise HTTPException(
@@ -160,6 +177,17 @@ async def create_job(
         metadata_path_str = str(meta_path)
 
     await job_store.create_job(str(input_path), metadata_path_str, job_id=job_id)
+    meta = {
+        k: v
+        for k, v in {
+            "project_name": project_name.strip() or None,
+            "tissue": tissue.strip() or None,
+            "disease": disease.strip() or None,
+        }.items()
+        if v
+    }
+    if meta:
+        await job_store.update_job(job_id, results=meta)
     background_tasks.add_task(run_job_pipeline, job_id, demo)
     return JobCreateResponse(job_id=job_id, status=JobStatus.QUEUED)
 
@@ -191,15 +219,44 @@ async def get_job_results(job_id: str) -> JobResultsResponse:
     return JobResultsResponse(
         job_id=job.id,
         status=JobStatus(job.status),
+        project_name=results.get("project_name"),
+        tissue=results.get("tissue"),
+        disease=results.get("disease"),
         qc_report=results.get("qc_report"),
         cluster_summary=results.get("cluster_summary"),
         cell_types=results.get("cell_types"),
+        de_summary=results.get("de_summary"),
+        de_tables=results.get("de_tables"),
+        umap_data=results.get("umap_data"),
         communication_edges=results.get("communication_edges"),
         umap_plot=results.get("umap_plot"),
         network_plot=results.get("network_plot"),
         heatmap_plot=results.get("heatmap_plot"),
         exports=results.get("exports"),
     )
+
+
+@router.get("/jobs/{job_id}/literature", response_model=LiteratureResponse)
+async def get_job_literature(job_id: str) -> LiteratureResponse:
+    job = await job_store.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status != JobStatus.COMPLETED.value:
+        raise HTTPException(status_code=400, detail="Analysis not complete")
+
+    edges = (job.results_json or {}).get("communication_edges") or []
+    enriched = await asyncio.to_thread(literature_for_edges, edges)
+    return LiteratureResponse(job_id=job_id, edges=enriched)
+
+
+@router.post("/jobs/{job_id}/chat", response_model=ChatResponse)
+async def chat_with_job(job_id: str, body: ChatRequest) -> ChatResponse:
+    job = await job_store.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    reply = answer_question(body.message, job.results_json or {})
+    return ChatResponse(reply=reply)
 
 
 @router.get("/jobs/{job_id}/artifacts/{filename}")

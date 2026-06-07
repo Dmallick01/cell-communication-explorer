@@ -17,6 +17,7 @@ from pipeline.steps import (
     run_batch_correction,
     run_clustering,
     run_communication,
+    run_de,
     run_export,
     run_qc,
 )
@@ -95,6 +96,12 @@ def run_pipeline(
         annotation_result["n_cell_types"] > 0,
     )
 
+    notify("de", "running")
+    de_summary, de_tables = run_de(adata, out, demo_mode=demo_mode)
+    save_json(out / "de_summary.json", de_summary)
+    step_outputs["de"] = de_summary
+    notify("de", "completed", f"{de_summary.get('n_genes_reported', 0)} DE genes", True)
+
     notify("communication", "running")
     edges, comm_metrics, network_plot, heatmap_plot = run_communication(
         adata, out, ref, demo_mode=demo_mode
@@ -130,12 +137,26 @@ def run_pipeline(
         methods_path=prov_exports.get("methods"),
     )
     exports.update(prov_exports)
+    de_csv = out / "de_genes.csv"
+    if de_csv.is_file():
+        exports["de_genes"] = str(de_csv)
+    umap_json = out / "umap_coords.json"
+    if umap_json.is_file():
+        exports["umap_coords"] = str(umap_json)
     notify("export", "completed", "Report + methods + provenance", True)
+
+    umap_data = None
+    umap_path = out / "umap_coords.json"
+    if umap_path.is_file():
+        umap_data = json.loads(umap_path.read_text())
 
     return {
         "qc_report": qc_report,
         "cluster_summary": cluster_summary,
         "cell_types": cell_types,
+        "de_summary": de_summary,
+        "de_tables": de_tables[:200],
+        "umap_data": umap_data,
         "communication_edges": edges,
         "umap_plot": umap_plot,
         "network_plot": network_plot,

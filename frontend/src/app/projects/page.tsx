@@ -2,19 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  Box,
-  Button,
-  Chip,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Typography,
-} from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
 import { listJobs, type JobListItem } from "@/lib/api";
 
 export default function ProjectsPage() {
@@ -25,77 +12,59 @@ export default function ProjectsPage() {
   }, []);
 
   return (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }} gutterBottom>
-            Analysis projects
-          </Typography>
-          <Typography color="text.secondary" sx={{ maxWidth: 560 }}>
-            Upload scRNA-seq data to discover cell-to-cell signaling hypotheses grounded in
-            NicheNet priors and citable methods.
-          </Typography>
-        </Box>
-        <Button
-          component={Link}
-          href="/projects/new"
-          variant="contained"
-          startIcon={<AddIcon />}
-          sx={{ alignSelf: "flex-start" }}
-        >
-          New analysis
-        </Button>
-      </Box>
+    <div>
+      <div className="app-header" style={{ borderBottom: "none", paddingTop: 0 }}>
+        <div>
+          <h1>Analysis projects</h1>
+          <p className="header-meta">
+            Upload scRNA-seq data to discover cell-to-cell signaling grounded in NicheNet priors
+            and citable methods.
+          </p>
+        </div>
+        <div className="header-actions">
+          <Link href="/projects/new" className="btn btn-primary">
+            New analysis
+          </Link>
+        </div>
+      </div>
 
-      <Paper>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Project ID</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Created</TableCell>
-              <TableCell align="right">Open</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {jobs.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4}>
-                  <Typography color="text.secondary" sx={{ py: 2 }}>
-                    No analyses yet. Start with a new upload or a benchmark dataset.
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            )}
+      {jobs.length === 0 ? (
+        <div className="empty-state">
+          No analyses yet.{" "}
+          <Link href="/projects/new">Start a new upload</Link> or run a dev benchmark.
+        </div>
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Project</th>
+              <th>Tissue</th>
+              <th>Condition</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
             {jobs.map((j) => (
-              <TableRow key={j.job_id} hover>
-                <TableCell sx={{ fontFamily: "monospace", fontSize: 13 }}>
-                  {j.job_id.slice(0, 8)}…
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    size="small"
-                    label={j.status}
-                    color={
-                      j.status === "completed"
-                        ? "success"
-                        : j.status === "failed"
-                          ? "error"
-                          : "primary"
-                    }
-                  />
-                </TableCell>
-                <TableCell>{j.created_at ? new Date(j.created_at).toLocaleString() : "—"}</TableCell>
-                <TableCell align="right">
-                  <Button component={Link} href={`/projects/${j.job_id}`} size="small">
-                    View
-                  </Button>
-                </TableCell>
-              </TableRow>
+              <tr key={j.job_id} className="clickable">
+                <td>{j.project_name || `${j.job_id.slice(0, 8)}…`}</td>
+                <td>{j.tissue || "—"}</td>
+                <td>{j.disease || "—"}</td>
+                <td>
+                  <span className="badge">{j.status}</span>
+                </td>
+                <td>{j.created_at ? new Date(j.created_at).toLocaleString() : "—"}</td>
+                <td>
+                  <Link href={`/projects/${j.job_id}`} className="btn">
+                    Open
+                  </Link>
+                </td>
+              </tr>
             ))}
-          </TableBody>
-        </Table>
-      </Paper>
-    </Box>
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }

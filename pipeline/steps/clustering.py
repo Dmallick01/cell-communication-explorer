@@ -29,10 +29,12 @@ def run_clustering(
 
     plot_path = output_dir / "umap_clusters.png"
     _save_umap(adata, plot_path)
+    umap_json = _export_umap_json(adata, output_dir / "umap_coords.json")
 
     cluster_counts = adata.obs["leiden"].value_counts().to_dict()
     metrics["cluster_counts"] = {str(k): int(v) for k, v in cluster_counts.items()}
 
+    metrics["umap_coords_path"] = umap_json
     return adata, metrics, str(plot_path)
 
 
@@ -103,6 +105,32 @@ def _silhouette(X: np.ndarray, labels: np.ndarray) -> float | None:
         return float(silhouette_score(X, labels))
     except Exception:
         return None
+
+
+def _export_umap_json(adata: ad.AnnData, path: Path, max_cells: int = 2000) -> str:
+    import json
+
+    coords = adata.obsm.get("X_umap")
+    if coords is None:
+        return ""
+
+    label_col = "cell_type" if "cell_type" in adata.obs.columns else "leiden"
+    labels = adata.obs[label_col].astype(str).values
+    n = coords.shape[0]
+    if n > max_cells:
+        idx = np.random.default_rng(0).choice(n, max_cells, replace=False)
+        coords = coords[idx]
+        labels = labels[idx]
+
+    payload = {
+        "points": [
+            {"x": float(coords[i, 0]), "y": float(coords[i, 1]), "cell_type": labels[i]}
+            for i in range(coords.shape[0])
+        ]
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload))
+    return str(path)
 
 
 def _save_umap(adata: ad.AnnData, path: Path) -> None:

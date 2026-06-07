@@ -1,20 +1,5 @@
 "use client";
 
-import {
-  Box,
-  Chip,
-  LinearProgress,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Paper,
-  Typography,
-} from "@mui/material";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import ErrorIcon from "@mui/icons-material/Error";
-import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
-import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 import type { JobStatusResponse } from "@/lib/api";
 
 const STEP_LABELS: Record<string, string> = {
@@ -23,68 +8,60 @@ const STEP_LABELS: Record<string, string> = {
   batch_correction: "Batch correction (Harmony)",
   clustering: "Clustering & UMAP",
   annotation: "Cell-type annotation",
-  communication: "Cell-cell communication",
+  de: "Differential expression",
+  communication: "Cell-cell communication (NicheNet)",
   export: "Report export",
 };
 
-function statusIcon(status: string) {
-  switch (status) {
-    case "completed":
-      return <CheckCircleIcon color="success" />;
-    case "running":
-      return <PlayCircleIcon color="primary" />;
-    case "failed":
-      return <ErrorIcon color="error" />;
-    default:
-      return <HourglassEmptyIcon color="disabled" />;
-  }
-}
-
 export default function PipelineProgress({ job }: { job: JobStatusResponse }) {
   const completed = job.steps.filter((s) => s.status === "completed").length;
-  const progress = (completed / job.steps.length) * 100;
+  const progress = job.steps.length ? (completed / job.steps.length) * 100 : 0;
 
   return (
-    <Paper sx={{ p: 3 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-        <Typography variant="h6">Pipeline Progress</Typography>
-        <Chip
-          label={job.status}
-          color={
-            job.status === "completed"
-              ? "success"
-              : job.status === "failed"
-                ? "error"
-                : "primary"
-          }
-        />
-      </Box>
+    <div className="progress-panel">
+      <div className="group-header">
+        <span>Pipeline progress</span>
+        <span className="group-count">{job.status}</span>
+      </div>
 
-      <LinearProgress variant="determinate" value={progress} sx={{ mb: 2, height: 8, borderRadius: 4 }} />
+      <div className="progress-track">
+        <div className="progress-fill" style={{ width: `${progress}%` }} />
+      </div>
 
-      <List dense>
+      <ul className="step-list">
         {job.steps.map((step) => (
-          <ListItem key={step.step}>
-            <ListItemIcon>{statusIcon(step.status)}</ListItemIcon>
-            <ListItemText
-              primary={STEP_LABELS[step.step] ?? step.step}
-              secondary={step.message ?? step.status}
-            />
-            {step.checkpoint_passed === false && step.status === "failed" && (
-              <Chip label="checkpoint failed" size="small" color="error" />
-            )}
-            {step.checkpoint_passed === false && step.status === "completed" && (
-              <Chip label="quality warning" size="small" color="warning" />
-            )}
-          </ListItem>
+          <li key={step.step} className="step-item">
+            <span
+              className={`step-status ${
+                step.status === "completed"
+                  ? "done"
+                  : step.status === "running"
+                    ? "running"
+                    : step.status === "failed"
+                      ? "failed"
+                      : ""
+              }`}
+            >
+              {step.status}
+            </span>
+            <div>
+              <div>{STEP_LABELS[step.step] ?? step.step}</div>
+              {step.message && (
+                <div style={{ color: "var(--cdisabled)", fontSize: 11, marginTop: 4 }}>
+                  {step.message}
+                </div>
+              )}
+              {step.checkpoint_passed === false && step.status === "completed" && (
+                <span className="badge badge-warn" style={{ marginTop: 4 }}>
+                  quality warning
+                </span>
+              )}
+            </div>
+          </li>
         ))}
-      </List>
+      </ul>
 
-      {job.error && (
-        <Typography color="error" sx={{ mt: 2 }}>
-          {job.error}
-        </Typography>
-      )}
-    </Paper>
+      {job.error && <div className="alert alert-error" style={{ marginTop: 16 }}>{job.error}</div>}
+    </div>
   );
 }

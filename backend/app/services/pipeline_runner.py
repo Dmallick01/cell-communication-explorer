@@ -41,6 +41,11 @@ async def run_job_pipeline(job_id: str, demo: bool = False) -> None:
     use_demo = (demo or settings.pipeline_demo_mode) and settings.development_only
 
     try:
+        existing_meta = {
+            k: job.results_json.get(k)
+            for k in ("project_name", "tissue", "disease")
+            if job.results_json.get(k)
+        }
         results = await asyncio.to_thread(
             run_pipeline,
             job_id=job_id,
@@ -51,6 +56,7 @@ async def run_job_pipeline(job_id: str, demo: bool = False) -> None:
             demo_mode=use_demo,
             on_step=on_step,
         )
+        results.update(existing_meta)
         update_job_sync(
             job_id,
             status=JobStatus.COMPLETED.value,
