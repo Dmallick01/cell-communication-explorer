@@ -7,13 +7,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
     curl \
+    gfortran \
     libfontconfig1-dev \
     libfreetype6-dev \
+    libglpk-dev \
+    libgit2-dev \
     libhdf5-dev \
     libcurl4-openssl-dev \
+    libjpeg-dev \
     libnlopt-dev \
     libpng-dev \
+    libssh2-1-dev \
     libssl-dev \
+    libtiff-dev \
     libuv1-dev \
     libxml2-dev \
     pkg-config \
@@ -23,8 +29,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # R packages for NicheNet bridge (nichenetr from GitHub — CRAN may lag on new R versions)
 ENV USE_BUNDLED_LIBUV=1
-RUN R -e "install.packages(c('remotes','jsonlite','dplyr','fs'), repos='https://cloud.r-project.org')" \
-    && R -e "remotes::install_github('saeyslab/nichenetr', upgrade='never', dependencies=TRUE)"
+RUN R -e "options(Ncpus=2); install.packages(c('remotes','jsonlite','dplyr','fs','ggplot2','igraph'), repos='https://cloud.r-project.org')" \
+    && R -e "remotes::install_github('saeyslab/nichenetr', upgrade='never', dependencies=TRUE)" \
+    && Rscript -e 'stopifnot(requireNamespace("nichenetr", quietly=TRUE)); cat("nichenetr", as.character(packageVersion("nichenetr")), "\n")'
 
 COPY backend/requirements.txt ./backend/
 RUN pip install --no-cache-dir -r backend/requirements.txt greenlet>=3.1.0
