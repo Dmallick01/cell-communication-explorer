@@ -78,8 +78,9 @@ def run_de(
 
     if not condition_col:
         min_cells = 2
+        max_groups = 15
         counts = adata.obs[label_col].astype(str).value_counts()
-        valid_groups = counts[counts >= min_cells].index.tolist()
+        valid_groups = counts[counts >= min_cells].head(max_groups).index.tolist()
         if len(valid_groups) < 2:
             return _demo_de(adata, label_col)
         sc.tl.rank_genes_groups(
