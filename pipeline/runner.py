@@ -163,4 +163,5 @@ def run_pipeline(
         "heatmap_plot": heatmap_plot,
         "exports": exports,
         "communication_method": "nichenet",
+        "demo_mode": demo_mode,
     }

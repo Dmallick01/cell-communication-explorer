@@ -9,7 +9,7 @@ import pandas as pd
 
 
 def _condition_column(adata: ad.AnnData) -> str | None:
-    for col in ("condition", "disease", "group", "treatment", "status"):
+    for col in ("condition", "stim", "disease", "group", "treatment", "status"):
         if col in adata.obs.columns and adata.obs[col].nunique() >= 2:
             return col
     return None

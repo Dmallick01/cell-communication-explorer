@@ -1,0 +1,27 @@
+# Render.com blueprint — alternative to Fly.io
+# Dashboard: New > Blueprint > connect repo
+services:
+  - type: web
+    name: cell-communication-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile.backend
+    plan: standard
+    region: virginia
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PIPELINE_DEMO_MODE
+        value: "false"
+      - key: DEVELOPMENT_ONLY
+        value: "false"
+      - key: MPLBACKEND
+        value: Agg
+      - key: PYTHONPATH
+        value: /app
+      - key: DATA_DIR
+        value: /app/data
+      - key: CORS_ORIGINS
+        value: '["https://frontend-sigma-nine-39.vercel.app","https://frontend-dmallick01s-projects.vercel.app"]'
+    disk:
+      name: cce-data
+      mountPath: /app/data
+      sizeGB: 10

@@ -1,9 +1,9 @@
 #!/usr/bin/env Rscript
 # NicheNet ligand-receptor prioritization (Browaeys et al., Nat Methods 2020)
-# Args: expression_csv sender_column receiver_column priors_dir output_json
+# Args: expression_csv meta_csv sender receiver priors_dir output.json
 
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 5) {
+if (length(args) < 6) {
   stop("Usage: nichenet_run.R <expr_csv> <meta_csv> <sender> <receiver> <priors_dir> <output.json>")
 }
 
@@ -16,7 +16,7 @@ out_path <- args[6]
 
 suppressPackageStartupMessages({
   if (!requireNamespace("nichenetr", quietly = TRUE)) {
-    stop("R package 'nichenetr' not installed. Run: install.packages('nichenetr')")
+    stop("R package 'nichenetr' not installed. Run: remotes::install_github('saeyslab/nichenetr')")
   }
   library(nichenetr)
   library(dplyr)
@@ -26,12 +26,24 @@ suppressPackageStartupMessages({
 expr <- read.csv(expr_path, row.names = 1, check.names = FALSE)
 meta <- read.csv(meta_path, row.names = 1, check.names = FALSE)
 
-ligand_target <- read.csv(file.path(priors_dir, "ligand_target_matrix_nsga2r_final.csv"), check.names = FALSE)
-lr_network <- read.csv(file.path(priors_dir, "ligand_receptor_matrix.csv"), check.names = FALSE)
-sig_network <- read.csv(file.path(priors_dir, "weighted_networks", "ligand_signaling_network.csv"), check.names = FALSE)
-gr_network <- read.csv(file.path(priors_dir, "weighted_networks", "gr_network.csv"), check.names = FALSE)
+lr_rds <- file.path(priors_dir, "lr_network_human_21122021.rds")
+lt_rds <- file.path(priors_dir, "ligand_target_matrix_nsga2r_final.rds")
+wn_rds <- file.path(priors_dir, "weighted_networks_nsga2r_final.rds")
 
-organism <- "human"
+if (file.exists(lr_rds)) {
+  lr_network <- readRDS(lr_rds)
+  ligand_target <- readRDS(lt_rds)
+  weighted_networks <- readRDS(wn_rds)
+  sig_network <- weighted_networks$sig
+  gr_network <- weighted_networks$gr
+} else {
+  # Legacy CSV layout (deprecated — re-run download_priors.sh)
+  ligand_target <- read.csv(file.path(priors_dir, "ligand_target_matrix_nsga2r_final.csv"), check.names = FALSE)
+  lr_network <- read.csv(file.path(priors_dir, "ligand_receptor_matrix.csv"), check.names = FALSE)
+  sig_network <- read.csv(file.path(priors_dir, "weighted_networks", "ligand_signaling_network.csv"), check.names = FALSE)
+  gr_network <- read.csv(file.path(priors_dir, "weighted_networks", "gr_network.csv"), check.names = FALSE)
+}
+
 expressed_genes <- rownames(expr)[rowMeans(expr) > 0]
 
 sender_cells <- rownames(meta)[meta$cell_type == sender_type]

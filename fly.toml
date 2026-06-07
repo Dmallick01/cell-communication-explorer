@@ -1,0 +1,37 @@
+# Fly.io production API — https://fly.io/docs/reference/configuration/
+app = 'cell-communication-api'
+primary_region = 'iad'
+
+[build]
+  dockerfile = 'Dockerfile.backend'
+
+[env]
+  PIPELINE_DEMO_MODE = 'false'
+  DEVELOPMENT_ONLY = 'false'
+  MPLBACKEND = 'Agg'
+  PYTHONPATH = '/app'
+  DATA_DIR = '/app/data'
+  # Set after deploy: fly secrets set CORS_ORIGINS='["https://frontend-sigma-nine-39.vercel.app"]'
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+  [http_service.concurrency]
+    type = 'requests'
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  memory = '4gb'
+  cpu_kind = 'shared'
+  cpus = 2
+
+[[mounts]]
+  source = 'cce_data'
+  destination = '/app/data'
+  initial_size = '10gb'

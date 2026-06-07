@@ -1,0 +1,14 @@
+.git
+.github
+frontend/
+data/
+benchmarks/pbmc3k/
+benchmarks/kang_ifn/
+*.h5ad
+.venv
+__pycache__
+*.pyc
+.env
+.cursor
+node_modules
+.next

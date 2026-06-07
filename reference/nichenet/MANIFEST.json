@@ -2,25 +2,21 @@
   "organism": "human",
   "version": "v2",
   "source": "https://zenodo.org/records/7074291",
+  "format": "rds",
   "files": [
     {
-      "name": "ligand_target_matrix_nsga2r_final.csv",
-      "url": "https://zenodo.org/records/7074291/files/ligand_target_matrix_nsga2r_final.csv",
+      "name": "lr_network_human_21122021.rds",
+      "url": "https://zenodo.org/record/7074291/files/lr_network_human_21122021.rds",
       "required": true
     },
     {
-      "name": "ligand_receptor_matrix.csv",
-      "url": "https://zenodo.org/records/7074291/files/ligand_receptor_matrix.csv",
+      "name": "ligand_target_matrix_nsga2r_final.rds",
+      "url": "https://zenodo.org/record/7074291/files/ligand_target_matrix_nsga2r_final.rds",
       "required": true
     },
     {
-      "name": "weighted_networks/ligand_signaling_network.csv",
-      "url": "https://zenodo.org/records/7074291/files/ligand_signaling_network.csv",
-      "required": true
-    },
-    {
-      "name": "weighted_networks/gr_network.csv",
-      "url": "https://zenodo.org/records/7074291/files/gr_network.csv",
+      "name": "weighted_networks_nsga2r_final.rds",
+      "url": "https://zenodo.org/record/7074291/files/weighted_networks_nsga2r_final.rds",
       "required": true
     }
   ],

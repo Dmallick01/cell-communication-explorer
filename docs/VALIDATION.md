@@ -14,7 +14,7 @@ This document defines how we prove the pipeline is research-grade before shippin
 bash reference/nichenet/download_priors.sh
 
 # 2. R + nichenetr
-R -e 'install.packages("nichenetr")'
+R -e 'install.packages("remotes"); remotes::install_github("saeyslab/nichenetr")'
 
 # 3. Python scientific stack
 pip install -r backend/requirements.txt

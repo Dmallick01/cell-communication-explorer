@@ -36,7 +36,7 @@ def build_provenance(
     repo_root = reference_dir.parent
     nichenet_dir = reference_dir / "nichenet"
     ref_files = {}
-    for p in nichenet_dir.rglob("*.csv"):
+    for p in list(nichenet_dir.rglob("*.csv")) + list(nichenet_dir.rglob("*.rds")):
         ref_files[str(p.relative_to(repo_root))] = _sha256(p)
 
     return {

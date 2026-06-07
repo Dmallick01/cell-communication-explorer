@@ -9,7 +9,11 @@ venv/
 data/
 *.h5ad
 reference/nichenet/*.csv
+reference/nichenet/*.rds
 reference/nichenet/weighted_networks/
+benchmarks/pbmc3k/
+benchmarks/kang_ifn/
+benchmarks/*_report.json
 
 # Environment
 .env

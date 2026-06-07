@@ -6,6 +6,7 @@ pydantic-settings>=2.6.0
 aiofiles>=24.1.0
 sqlalchemy>=2.0.36
 aiosqlite>=0.20.0
+greenlet>=3.1.0
 
 # Scientific stack (install for full pipeline)
 scanpy>=1.10.0

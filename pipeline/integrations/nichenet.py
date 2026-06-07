@@ -19,10 +19,9 @@ def nichenet_available(reference_dir: Path) -> tuple[bool, str]:
 
     priors = reference_dir / "nichenet"
     required = [
-        priors / "ligand_target_matrix_nsga2r_final.csv",
-        priors / "ligand_receptor_matrix.csv",
-        priors / "weighted_networks" / "ligand_signaling_network.csv",
-        priors / "weighted_networks" / "gr_network.csv",
+        priors / "lr_network_human_21122021.rds",
+        priors / "ligand_target_matrix_nsga2r_final.rds",
+        priors / "weighted_networks_nsga2r_final.rds",
     ]
     missing = [str(p.relative_to(priors.parent.parent)) for p in required if not p.is_file()]
     if missing:
@@ -51,11 +50,11 @@ def run_nichenet(
     work = output_dir / "nichenet_work"
     work.mkdir(parents=True, exist_ok=True)
 
-    # Expression: genes × cells (NicheNet convention)
+    # Expression CSV: genes (rows) × cells (columns) — matches nichenet_run.R
     X = adata.X
     if hasattr(X, "toarray"):
         X = X.toarray()
-    expr = pd.DataFrame(X.T, index=adata.obs_names, columns=adata.var_names)
+    expr = pd.DataFrame(X.T, index=adata.var_names, columns=adata.obs_names)
     expr_path = work / "expression.csv"
     expr.to_csv(expr_path)
 
@@ -90,9 +89,13 @@ def run_nichenet(
             try:
                 subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=600)
             except subprocess.CalledProcessError as exc:
-                # Skip pairs with insufficient cells; continue
                 stderr = exc.stderr or ""
-                if "Insufficient cells" in stderr:
+                skippable = (
+                    "Insufficient cells",
+                    "No expressed ligands or receptors",
+                    "all genes have same response",
+                )
+                if any(msg in stderr for msg in skippable):
                     continue
                 raise CheckpointError(f"NicheNet failed for {sender}->{receiver}: {stderr}") from exc
             except subprocess.TimeoutExpired as exc:
