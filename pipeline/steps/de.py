@@ -77,8 +77,19 @@ def run_de(
             condition_col = None
 
     if not condition_col:
-        sc.tl.rank_genes_groups(adata, groupby=label_col, method="wilcoxon", key_added="de_markers")
-        for ct in adata.obs[label_col].astype(str).unique():
+        min_cells = 2
+        counts = adata.obs[label_col].astype(str).value_counts()
+        valid_groups = counts[counts >= min_cells].index.tolist()
+        if len(valid_groups) < 2:
+            return _demo_de(adata, label_col)
+        sc.tl.rank_genes_groups(
+            adata,
+            groupby=label_col,
+            groups=valid_groups,
+            method="wilcoxon",
+            key_added="de_markers",
+        )
+        for ct in valid_groups:
             df = sc.get.rank_genes_groups_df(adata, group=ct, key="de_markers")
             df = df.head(15)
             df["cell_type"] = ct

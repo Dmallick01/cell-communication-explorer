@@ -70,24 +70,37 @@ def _demo_clustering(adata: ad.AnnData) -> tuple[ad.AnnData, dict[str, Any]]:
 def _scanpy_clustering(adata: ad.AnnData) -> tuple[ad.AnnData, dict[str, Any]]:
     import scanpy as sc
 
-    rep = "X_pca_harmony" if "X_pca_harmony" in adata.obsm else "X_pca"
+    # Keep full log-normalized expression for CellTypist / NicheNet / DE.
+    work = adata.copy()
+    if "log1p" not in work.uns:
+        sc.pp.normalize_total(work, target_sum=1e4)
+        sc.pp.log1p(work)
+        work.uns["log1p"] = {"base": None}
 
-    if rep not in adata.obsm:
-        sc.pp.normalize_total(adata, target_sum=1e4)
-        sc.pp.log1p(adata)
-        sc.pp.highly_variable_genes(adata, n_top_genes=2000)
-        adata = adata[:, adata.var.highly_variable].copy()
-        sc.pp.scale(adata, max_value=10)
-        sc.tl.pca(adata, n_comps=30)
+    sc.pp.highly_variable_genes(work, n_top_genes=2000)
+    hvg = work[:, work.var.highly_variable].copy()
+
+    rep = "X_pca_harmony" if "X_pca_harmony" in work.obsm else "X_pca"
+    if rep not in work.obsm:
+        hvg_scaled = hvg.copy()
+        sc.pp.scale(hvg_scaled, max_value=10)
+        sc.tl.pca(hvg_scaled, n_comps=30)
+        hvg.obsm["X_pca"] = hvg_scaled.obsm["X_pca"]
         rep = "X_pca"
+    else:
+        hvg.obsm[rep] = work.obsm[rep]
 
-    sc.pp.neighbors(adata, use_rep=rep, n_neighbors=15)
-    sc.tl.leiden(adata, resolution=0.8, key_added="leiden")
-    sc.tl.umap(adata)
+    sc.pp.neighbors(hvg, use_rep=rep, n_neighbors=15)
+    sc.tl.leiden(hvg, resolution=0.8, key_added="leiden")
+    sc.tl.umap(hvg)
 
-    silhouette = _silhouette(adata.obsm[rep], adata.obs["leiden"].astype(int))
-    return adata, {
-        "n_clusters": int(adata.obs["leiden"].nunique()),
+    work.obs["leiden"] = hvg.obs["leiden"].astype(str)
+    work.obsm["X_umap"] = hvg.obsm["X_umap"]
+    work.obsm[rep] = hvg.obsm[rep]
+
+    silhouette = _silhouette(work.obsm[rep], work.obs["leiden"].astype(int))
+    return work, {
+        "n_clusters": int(work.obs["leiden"].nunique()),
         "silhouette_score": silhouette,
         "resolution": 0.8,
         "representation": rep,
