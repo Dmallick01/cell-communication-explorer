@@ -48,8 +48,9 @@ export default function UploadForm({ onJobCreated }: UploadFormProps) {
         Upload scRNA-seq Data
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Supported formats: .h5ad, 10x MTX, CSV/TSV expression matrix. Optional
-        metadata CSV with cell barcodes as row index.
+        Supported formats: .h5ad, 10x MTX (.zip with matrix + barcodes +
+        features), CSV/TSV expression matrix. Optional metadata CSV with cell
+        barcodes as row index.
       </Typography>
 
       <Box component="form" onSubmit={handleSubmit}>
@@ -59,7 +60,7 @@ export default function UploadForm({ onJobCreated }: UploadFormProps) {
             <input
               type="file"
               hidden
-              accept=".h5ad,.mtx,.csv,.tsv,.txt,.gz"
+              accept=".h5ad,.mtx,.csv,.tsv,.txt,.gz,.zip"
               onChange={(e) => setDataFile(e.target.files?.[0] ?? null)}
             />
           </Button>
@@ -86,27 +87,28 @@ export default function UploadForm({ onJobCreated }: UploadFormProps) {
             Run Analysis Pipeline
           </Button>
 
-          <Button
-            variant="text"
-            disabled={loading}
-            onClick={async () => {
-              const blob = new Blob(["demo"], { type: "text/plain" });
-              const file = new File([blob], "demo.h5ad", { type: "application/octet-stream" });
-              setDataFile(file);
-              setLoading(true);
-              setError(null);
-              try {
-                const { job_id } = await createJob(file, null, true);
-                onJobCreated(job_id);
-              } catch (err) {
-                setError(err instanceof Error ? err.message : "Demo failed");
-              } finally {
-                setLoading(false);
-              }
-            }}
-          >
-            Run demo with synthetic data
-          </Button>
+          {process.env.NEXT_PUBLIC_DEVELOPMENT_ONLY === "true" && (
+            <Button
+              variant="text"
+              disabled={loading}
+              onClick={async () => {
+                const blob = new Blob(["demo"], { type: "text/plain" });
+                const file = new File([blob], "demo.h5ad", { type: "application/octet-stream" });
+                setLoading(true);
+                setError(null);
+                try {
+                  const { job_id } = await createJob(file, null, true);
+                  onJobCreated(job_id);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : "Dev run failed");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              Dev-only synthetic run
+            </Button>
+          )}
         </Stack>
       </Box>
     </Paper>

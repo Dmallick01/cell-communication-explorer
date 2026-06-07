@@ -14,7 +14,9 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./data/jobs.db"
     max_upload_bytes: int = 2 * 1024 * 1024 * 1024  # 2 GB
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
-    pipeline_demo_mode: bool = False  # set PIPELINE_DEMO_MODE=true for synthetic data
+    pipeline_demo_mode: bool = False
+    development_only: bool = False  # DEVELOPMENT_ONLY=true enables demo uploads
+    reference_dir: Path = Path("reference")
 
 
 settings = Settings()

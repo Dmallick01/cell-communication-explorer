@@ -83,6 +83,13 @@ class JobStore:
         async with SessionLocal() as session:
             return await session.get(JobRecord, job_id)
 
+    async def list_jobs(self, limit: int = 50) -> list[JobRecord]:
+        async with SessionLocal() as session:
+            result = await session.execute(
+                select(JobRecord).order_by(JobRecord.created_at.desc()).limit(limit)
+            )
+            return list(result.scalars().all())
+
     async def update_job(
         self,
         job_id: str,

@@ -1,0 +1,28 @@
+{
+  "organism": "human",
+  "version": "v2",
+  "source": "https://zenodo.org/records/7074291",
+  "files": [
+    {
+      "name": "ligand_target_matrix_nsga2r_final.csv",
+      "url": "https://zenodo.org/records/7074291/files/ligand_target_matrix_nsga2r_final.csv",
+      "required": true
+    },
+    {
+      "name": "ligand_receptor_matrix.csv",
+      "url": "https://zenodo.org/records/7074291/files/ligand_receptor_matrix.csv",
+      "required": true
+    },
+    {
+      "name": "weighted_networks/ligand_signaling_network.csv",
+      "url": "https://zenodo.org/records/7074291/files/ligand_signaling_network.csv",
+      "required": true
+    },
+    {
+      "name": "weighted_networks/gr_network.csv",
+      "url": "https://zenodo.org/records/7074291/files/gr_network.csv",
+      "required": true
+    }
+  ],
+  "setup": "Run: bash reference/nichenet/download_priors.sh"
+}

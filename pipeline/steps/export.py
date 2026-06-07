@@ -16,6 +16,7 @@ def run_export(
     cell_types: list[dict[str, Any]],
     edges: list[dict[str, Any]],
     plot_paths: dict[str, str],
+    methods_path: str | None = None,
 ) -> dict[str, str]:
     exports: dict[str, str] = {}
 
@@ -56,11 +57,27 @@ def run_export(
         cluster_summary=cluster_summary,
         cell_types=cell_types,
         edges=edges[:20],
-        plot_paths=plot_paths,
     )
     exports["report_html"] = str(html_path)
 
+    if methods_path and Path(methods_path).is_file():
+        exports["methods"] = methods_path
+
+    pdf_path = _write_pdf_report(html_path, output_dir / "report.pdf")
+    if pdf_path:
+        exports["report_pdf"] = str(pdf_path)
+
     return exports
+
+
+def _write_pdf_report(html_path: Path, pdf_path: Path) -> Path | None:
+    try:
+        from weasyprint import HTML
+
+        HTML(filename=str(html_path)).write_pdf(str(pdf_path))
+        return pdf_path
+    except Exception:
+        return None
 
 
 def _write_html_report(
@@ -71,7 +88,6 @@ def _write_html_report(
     cluster_summary: dict[str, Any],
     cell_types: list[dict[str, Any]],
     edges: list[dict[str, Any]],
-    plot_paths: dict[str, str],
 ) -> None:
     ct_rows = "".join(
         f"<tr><td>{c['cell_type']}</td><td>{c['count']}</td><td>{c['fraction']}</td></tr>"

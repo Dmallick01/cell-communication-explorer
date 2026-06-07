@@ -20,7 +20,9 @@ from pipeline.steps import (
     run_export,
     run_qc,
 )
+from pipeline.utils.checkpoints import clustering_quality_ok
 from pipeline.utils.io import save_json
+from pipeline.utils.provenance import write_provenance_bundle
 
 StepCallback = Callable[[str, str, str | None, bool | None], None]
 
@@ -30,56 +32,62 @@ def run_pipeline(
     input_path: str,
     metadata_path: str | None,
     output_dir: str,
+    reference_dir: str | None = None,
     demo_mode: bool = False,
     on_step: StepCallback | None = None,
 ) -> dict[str, Any]:
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
+    ref = Path(reference_dir) if reference_dir else Path("reference")
 
     def notify(step: str, status: str, message: str | None = None, checkpoint: bool | None = None):
         if on_step:
             on_step(step, status, message, checkpoint)
 
-    # Step 1: Upload / load
+    step_outputs: dict[str, Any] = {}
+
     notify("upload", "running")
     adata, load_metrics = load_dataset(input_path, metadata_path, demo_mode=demo_mode)
-    h5ad_path = out / "processed.h5ad"
-    adata.write_h5ad(h5ad_path)
+    adata.write_h5ad(out / "processed.h5ad")
     save_json(out / "load_metrics.json", load_metrics)
+    step_outputs["upload"] = load_metrics
     notify("upload", "completed", "Dataset loaded", True)
 
-    # Step 2: QC
     notify("qc", "running")
     adata, qc_report = run_qc(adata, demo_mode=demo_mode)
     adata.write_h5ad(out / "qc.h5ad")
     save_json(out / "qc_report.json", qc_report)
+    step_outputs["qc"] = qc_report
     notify("qc", "completed", f"{qc_report['cells_remaining']} cells pass QC", True)
 
-    # Step 3: Batch correction
     notify("batch_correction", "running")
     adata, batch_metrics = run_batch_correction(adata, demo_mode=demo_mode)
     save_json(out / "batch_correction.json", batch_metrics)
+    step_outputs["batch_correction"] = batch_metrics
     notify("batch_correction", "completed", batch_metrics.get("method", "harmony"), True)
 
-    # Step 4: Clustering
     notify("clustering", "running")
     adata, cluster_summary, umap_plot = run_clustering(adata, out, demo_mode=demo_mode)
     adata.write_h5ad(out / "clustered.h5ad")
     save_json(out / "cluster_summary.json", cluster_summary)
+    step_outputs["clustering"] = cluster_summary
+    silhouette = cluster_summary.get("silhouette_score")
+    cluster_msg = f"{cluster_summary['n_clusters']} clusters"
+    if silhouette is not None:
+        cluster_msg += f" (silhouette {silhouette:.3f})"
     notify(
         "clustering",
         "completed",
-        f"{cluster_summary['n_clusters']} clusters",
-        cluster_summary.get("silhouette_score", 0) is None
-        or cluster_summary.get("silhouette_score", 0) >= 0.15,
+        cluster_msg,
+        clustering_quality_ok(cluster_summary, demo_mode=demo_mode),
     )
 
-    # Step 5: Annotation
     notify("annotation", "running")
     adata, annotation_result = run_annotation(adata, demo_mode=demo_mode)
     cell_types = annotation_result["cell_types"]
     adata.write_h5ad(out / "annotated.h5ad")
     save_json(out / "annotation.json", annotation_result)
+    step_outputs["annotation"] = annotation_result
     notify(
         "annotation",
         "completed",
@@ -87,26 +95,30 @@ def run_pipeline(
         annotation_result["n_cell_types"] > 0,
     )
 
-    # Step 6: Communication
     notify("communication", "running")
     edges, comm_metrics, network_plot, heatmap_plot = run_communication(
-        adata, out, demo_mode=demo_mode
+        adata, out, ref, demo_mode=demo_mode
     )
     save_json(out / "communication.json", comm_metrics)
-    notify(
-        "communication",
-        "completed",
-        f"{len(edges)} interactions",
-        len(edges) > 0,
+    step_outputs["communication"] = comm_metrics
+    notify("communication", "completed", f"{len(edges)} interactions (NicheNet)", len(edges) > 0)
+
+    plot_paths = {"umap": umap_plot, "network": network_plot, "heatmap": heatmap_plot}
+    parameters = {
+        "communication_method": "nichenet",
+        "batch_correction": batch_metrics.get("method"),
+        "celltypist_model": annotation_result.get("method"),
+        "demo_mode": demo_mode,
+    }
+    prov_exports = write_provenance_bundle(
+        out,
+        job_id,
+        parameters=parameters,
+        reference_dir=ref,
+        step_outputs=step_outputs,
     )
 
-    # Step 7: Export
     notify("export", "running")
-    plot_paths = {
-        "umap": umap_plot,
-        "network": network_plot,
-        "heatmap": heatmap_plot,
-    }
     exports = run_export(
         job_id,
         out,
@@ -115,8 +127,10 @@ def run_pipeline(
         cell_types=cell_types,
         edges=edges,
         plot_paths=plot_paths,
+        methods_path=prov_exports.get("methods"),
     )
-    notify("export", "completed", "Report generated", True)
+    exports.update(prov_exports)
+    notify("export", "completed", "Report + methods + provenance", True)
 
     return {
         "qc_report": qc_report,
@@ -127,4 +141,5 @@ def run_pipeline(
         "network_plot": network_plot,
         "heatmap_plot": heatmap_plot,
         "exports": exports,
+        "communication_method": "nichenet",
     }

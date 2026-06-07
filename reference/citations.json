@@ -1,0 +1,32 @@
+{
+  "scanpy": {
+    "name": "Scanpy",
+    "citation": "Wolf FA, Angerer P, Theis FJ. SCANPY: large-scale single-cell gene expression data analysis. Genome Biol. 2018;19(1):15.",
+    "doi": "10.1186/s13059-017-1382-0"
+  },
+  "harmony": {
+    "name": "Harmony",
+    "citation": "Korsunsky I, et al. Fast, sensitive and accurate integration of single-cell data with Harmony. Nat Methods. 2019;16(12):1289-1296.",
+    "doi": "10.1038/s41592-019-0619-0"
+  },
+  "celltypist": {
+    "name": "CellTypist",
+    "citation": "Domínguez Conde C, et al. Cross-tissue immune cell analysis reveals tissue-specific features and changing states. Science. 2022;376(6594):eabl5197.",
+    "doi": "10.1126/science.abl5197"
+  },
+  "nichenet": {
+    "name": "NicheNet",
+    "citation": "Browaeys R, Saelens W, Saeys Y. NicheNet: modeling intercellular communication by linking ligands to target genes. Nat Methods. 2020;17(2):159-162.",
+    "doi": "10.1038/s41592-019-0667-5"
+  },
+  "cellphonedb": {
+    "name": "CellPhoneDB",
+    "citation": "Efremova M, et al. CellPhoneDB: inferring cell-cell communication from combined expression of multi-subunit ligand-receptor complexes. Nat Protoc. 2020;15(4):1484-1506.",
+    "doi": "10.1038/s41596-020-0312-x"
+  },
+  "scrublet": {
+    "name": "Scrublet",
+    "citation": "Wolock SL, Lopez R, Klein AM. Scrublet: Computational Identification of Cell Doublets in Single-Cell Transcriptomic Data. Cell Syst. 2019;8(4):281-291.e9.",
+    "doi": "10.1016/j.cels.2018.11.005"
+  }
+}

@@ -70,8 +70,11 @@ export default function PipelineProgress({ job }: { job: JobStatusResponse }) {
               primary={STEP_LABELS[step.step] ?? step.step}
               secondary={step.message ?? step.status}
             />
-            {step.checkpoint_passed === false && (
-              <Chip label="checkpoint failed" size="small" color="warning" />
+            {step.checkpoint_passed === false && step.status === "failed" && (
+              <Chip label="checkpoint failed" size="small" color="error" />
+            )}
+            {step.checkpoint_passed === false && step.status === "completed" && (
+              <Chip label="quality warning" size="small" color="warning" />
             )}
           </ListItem>
         ))}

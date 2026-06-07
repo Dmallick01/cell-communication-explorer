@@ -4,7 +4,7 @@ from typing import Any
 
 
 class CheckpointError(Exception):
-    """Raised when a scientific checkpoint fails."""
+    """Raised when a hard scientific checkpoint fails."""
 
 
 def validate_input_sanity(metrics: dict[str, Any]) -> None:
@@ -25,10 +25,14 @@ def validate_qc(metrics: dict[str, Any]) -> None:
         raise CheckpointError("Fewer than 30 cells remain after QC filtering")
 
 
-def validate_clustering(metrics: dict[str, Any]) -> None:
+def clustering_quality_ok(metrics: dict[str, Any], *, demo_mode: bool = False) -> bool:
+    """Advisory checkpoint — low silhouette warns but does not fail the pipeline."""
+    if demo_mode:
+        return True
     silhouette = metrics.get("silhouette_score")
-    if silhouette is not None and silhouette < 0.15:
-        raise CheckpointError(f"Silhouette score {silhouette:.3f} below threshold 0.15")
+    if silhouette is None:
+        return True
+    return silhouette >= 0.15
 
 
 def validate_communication(metrics: dict[str, Any]) -> None:

@@ -56,10 +56,11 @@ docker compose up --build
 | `/api/v1/jobs` | POST | Upload data + start pipeline |
 | `/api/v1/jobs/{id}` | GET | Job status + step progress |
 | `/api/v1/jobs/{id}/results` | GET | Analysis results |
+| `/api/v1/jobs/{id}/artifacts/{file}` | GET | Plots, reports, CSV exports |
 
 ## Pipeline Steps (v1.0)
 
-1. **Upload** — validate `.h5ad`, MTX, CSV; barcode uniqueness
+1. **Upload** — validate `.h5ad`, 10x MTX (`.zip`), CSV; barcode uniqueness
 2. **QC** — mitochondrial %, gene/cell filters, Scrublet doublets
 3. **Batch correction** — Harmony (when `batch` column present)
 4. **Clustering** — PCA, Leiden, UMAP + silhouette checkpoint

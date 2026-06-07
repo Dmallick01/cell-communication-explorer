@@ -1,4 +1,12 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api/v1";
+const API_ORIGIN = API_BASE.replace(/\/api\/v1\/?$/, "");
+
+/** Resolve artifact paths returned by the API to absolute backend URLs. */
+export function resolveArtifactUrl(path?: string): string | undefined {
+  if (!path) return undefined;
+  if (path.startsWith("http")) return path;
+  return `${API_ORIGIN}${path.startsWith("/") ? path : `/${path}`}`;
+}
 
 export type JobStatus = "queued" | "running" | "completed" | "failed";
 
@@ -77,5 +85,19 @@ export async function getJobStatus(jobId: string): Promise<JobStatusResponse> {
 export async function getJobResults(jobId: string): Promise<JobResultsResponse> {
   const res = await fetch(`${API_BASE}/jobs/${jobId}/results`);
   if (!res.ok) throw new Error("Results not available");
+  return res.json();
+}
+
+export interface JobListItem {
+  job_id: string;
+  status: JobStatus;
+  created_at: string | null;
+  updated_at: string | null;
+  error?: string;
+}
+
+export async function listJobs(): Promise<JobListItem[]> {
+  const res = await fetch(`${API_BASE}/jobs`);
+  if (!res.ok) return [];
   return res.json();
 }

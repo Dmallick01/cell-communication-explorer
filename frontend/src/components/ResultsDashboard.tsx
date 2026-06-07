@@ -2,8 +2,10 @@
 
 import {
   Box,
+  Button,
   Grid,
   Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -11,7 +13,25 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import type { JobResultsResponse } from "@/lib/api";
+import DownloadIcon from "@mui/icons-material/Download";
+import { resolveArtifactUrl, type JobResultsResponse } from "@/lib/api";
+
+function PlotCard({ title, src }: { title: string; src?: string }) {
+  if (!src) return null;
+  return (
+    <Paper sx={{ p: 2 }}>
+      <Typography variant="h6" gutterBottom>
+        {title}
+      </Typography>
+      <Box
+        component="img"
+        src={src}
+        alt={title}
+        sx={{ width: "100%", borderRadius: 1, border: "1px solid #eee" }}
+      />
+    </Paper>
+  );
+}
 
 export default function ResultsDashboard({
   results,
@@ -20,9 +40,57 @@ export default function ResultsDashboard({
 }) {
   const edges = results.communication_edges ?? [];
   const cellTypes = results.cell_types ?? [];
+  const exports = results.exports ?? {};
 
   return (
     <Box sx={{ mt: 3 }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: "wrap", gap: 1 }}>
+        {exports.report_html && (
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<DownloadIcon />}
+            href={resolveArtifactUrl(exports.report_html)!}
+            target="_blank"
+          >
+            HTML Report
+          </Button>
+        )}
+        {exports.report_pdf && (
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<DownloadIcon />}
+            href={resolveArtifactUrl(exports.report_pdf)!}
+            target="_blank"
+          >
+            PDF Report
+          </Button>
+        )}
+        {exports.communication_edges && (
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<DownloadIcon />}
+            href={resolveArtifactUrl(exports.communication_edges)!}
+            target="_blank"
+          >
+            Interactions CSV
+          </Button>
+        )}
+        {exports.cell_types && (
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<DownloadIcon />}
+            href={resolveArtifactUrl(exports.cell_types)!}
+            target="_blank"
+          >
+            Cell Types CSV
+          </Button>
+        )}
+      </Stack>
+
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Paper sx={{ p: 2 }}>
@@ -72,6 +140,16 @@ export default function ResultsDashboard({
               </TableBody>
             </Table>
           </Paper>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 4 }}>
+          <PlotCard title="UMAP Clusters" src={resolveArtifactUrl(results.umap_plot)} />
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <PlotCard title="Communication Network" src={resolveArtifactUrl(results.network_plot)} />
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <PlotCard title="Ligand-Receptor Heatmap" src={resolveArtifactUrl(results.heatmap_plot)} />
         </Grid>
 
         <Grid size={{ xs: 12 }}>

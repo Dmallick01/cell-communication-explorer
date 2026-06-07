@@ -1,8 +1,11 @@
+import shutil
+import zipfile
 from pathlib import Path
 from uuid import uuid4
 
 import aiofiles
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 
 from app.core.config import settings
 from app.core.job_store import job_store
@@ -17,12 +20,91 @@ from app.services.pipeline_runner import run_job_pipeline
 
 router = APIRouter()
 
-ALLOWED_SUFFIXES = {".h5ad", ".mtx", ".csv", ".tsv", ".txt", ".gz"}
+ALLOWED_SUFFIXES = {".h5ad", ".mtx", ".csv", ".tsv", ".txt", ".gz", ".zip"}
+
+ARTIFACT_FILES = {
+    "umap_clusters.png",
+    "communication_network.png",
+    "communication_heatmap.png",
+    "report.html",
+    "report.pdf",
+    "communication_edges.csv",
+    "cell_types.csv",
+    "qc_report.json",
+    "session_summary.json",
+    "provenance.json",
+    "methods.txt",
+}
+
+
+def _artifact_url(job_id: str, filename: str) -> str:
+    return f"{settings.api_prefix}/jobs/{job_id}/artifacts/{filename}"
+
+
+def _public_results(job_id: str, results: dict) -> dict:
+    """Map filesystem paths to API artifact URLs."""
+    out = dict(results)
+    plot_map = {
+        "umap_plot": "umap_clusters.png",
+        "network_plot": "communication_network.png",
+        "heatmap_plot": "communication_heatmap.png",
+    }
+    for key, filename in plot_map.items():
+        if out.get(key):
+            out[key] = _artifact_url(job_id, filename)
+
+    exports = out.get("exports") or {}
+    export_keys = {
+        "report_html": "report.html",
+        "report_pdf": "report.pdf",
+        "communication_edges": "communication_edges.csv",
+        "cell_types": "cell_types.csv",
+        "qc_report": "qc_report.json",
+        "session_summary": "session_summary.json",
+        "provenance": "provenance.json",
+        "methods": "methods.txt",
+    }
+    out["exports"] = {
+        key: _artifact_url(job_id, filename)
+        for key, filename in export_keys.items()
+        if key in exports
+    }
+    return out
+
+
+def _extract_zip(zip_path: Path, dest_dir: Path) -> Path:
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        zf.extractall(dest_dir)
+
+    for name in ("matrix.mtx", "matrix.mtx.gz"):
+        matches = list(dest_dir.rglob(name))
+        if matches:
+            return matches[0].parent
+
+    raise ValueError(
+        "ZIP must contain a 10x Genomics matrix (matrix.mtx + barcodes.tsv + features.tsv)"
+    )
 
 
 @router.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok", "service": settings.app_name}
+
+
+@router.get("/jobs")
+async def list_jobs(limit: int = 50) -> list[dict]:
+    jobs = await job_store.list_jobs(limit=limit)
+    return [
+        {
+            "job_id": j.id,
+            "status": j.status,
+            "created_at": j.created_at.isoformat() if j.created_at else None,
+            "updated_at": j.updated_at.isoformat() if j.updated_at else None,
+            "error": j.error,
+        }
+        for j in jobs
+    ]
 
 
 @router.post("/jobs", response_model=JobCreateResponse)
@@ -32,6 +114,12 @@ async def create_job(
     metadata_file: UploadFile | None = File(None),
     demo: bool = Form(False),
 ) -> JobCreateResponse:
+    if demo and not settings.development_only:
+        raise HTTPException(
+            status_code=403,
+            detail="Demo mode is disabled in production. Upload real scRNA-seq data.",
+        )
+
     if not data_file.filename:
         raise HTTPException(status_code=400, detail="Data file is required")
 
@@ -50,9 +138,18 @@ async def create_job(
     settings.uploads_dir.mkdir(parents=True, exist_ok=True)
     job_id = str(uuid4())
 
-    input_path = settings.uploads_dir / f"{job_id}_{filename}"
-    async with aiofiles.open(input_path, "wb") as out:
+    saved_path = settings.uploads_dir / f"{job_id}_{filename}"
+    async with aiofiles.open(saved_path, "wb") as out:
         await out.write(content)
+
+    input_path = saved_path
+    if suffix == ".zip":
+        try:
+            extract_dir = settings.uploads_dir / f"{job_id}_10x"
+            input_path = _extract_zip(saved_path, extract_dir)
+        except ValueError as exc:
+            shutil.rmtree(settings.uploads_dir / f"{job_id}_10x", ignore_errors=True)
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     metadata_path_str: str | None = None
     if metadata_file and metadata_file.filename:
@@ -90,7 +187,7 @@ async def get_job_results(job_id: str) -> JobResultsResponse:
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    results = job.results_json or {}
+    results = _public_results(job_id, job.results_json or {})
     return JobResultsResponse(
         job_id=job.id,
         status=JobStatus(job.status),
@@ -103,3 +200,33 @@ async def get_job_results(job_id: str) -> JobResultsResponse:
         heatmap_plot=results.get("heatmap_plot"),
         exports=results.get("exports"),
     )
+
+
+@router.get("/jobs/{job_id}/artifacts/{filename}")
+async def get_job_artifact(job_id: str, filename: str) -> FileResponse:
+    if filename not in ARTIFACT_FILES:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+
+    job = await job_store.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    path = settings.results_dir / job_id / filename
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Artifact not ready")
+
+    media = "application/octet-stream"
+    if filename.endswith(".png"):
+        media = "image/png"
+    elif filename.endswith(".html"):
+        media = "text/html"
+    elif filename.endswith(".pdf"):
+        media = "application/pdf"
+    elif filename.endswith(".csv"):
+        media = "text/csv"
+    elif filename.endswith(".json"):
+        media = "application/json"
+    elif filename.endswith(".txt"):
+        media = "text/plain"
+
+    return FileResponse(path, media_type=media, filename=filename)

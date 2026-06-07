@@ -36,6 +36,10 @@ async def run_job_pipeline(job_id: str, demo: bool = False) -> None:
     def on_step(step: str, status: str, message: str | None = None, checkpoint: bool | None = None):
         update_step_sync(job_id, step, status, message, checkpoint)
 
+    project_root = Path(__file__).resolve().parents[3]
+    ref_dir = project_root / settings.reference_dir
+    use_demo = (demo or settings.pipeline_demo_mode) and settings.development_only
+
     try:
         results = await asyncio.to_thread(
             run_pipeline,
@@ -43,7 +47,8 @@ async def run_job_pipeline(job_id: str, demo: bool = False) -> None:
             input_path=job.input_path,
             metadata_path=job.metadata_path,
             output_dir=str(output_dir),
-            demo_mode=demo or settings.pipeline_demo_mode,
+            reference_dir=str(ref_dir),
+            demo_mode=use_demo,
             on_step=on_step,
         )
         update_job_sync(

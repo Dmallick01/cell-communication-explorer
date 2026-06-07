@@ -13,7 +13,6 @@ import numpy as np
 from sklearn.metrics import silhouette_score
 
 from pipeline.steps.batch_correction import _demo_pca
-from pipeline.utils.checkpoints import validate_clustering
 
 
 def run_clustering(
@@ -27,7 +26,6 @@ def run_clustering(
         adata, metrics = _demo_clustering(adata)
     else:
         adata, metrics = _scanpy_clustering(adata)
-        validate_clustering(metrics)
 
     plot_path = output_dir / "umap_clusters.png"
     _save_umap(adata, plot_path)
