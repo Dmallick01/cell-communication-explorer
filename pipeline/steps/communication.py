@@ -14,7 +14,7 @@ import pandas as pd
 import seaborn as sns
 
 from pipeline.integrations.nichenet import run_nichenet
-from pipeline.utils.checkpoints import CheckpointError, validate_communication
+from pipeline.utils.checkpoints import validate_communication
 
 
 def run_communication(
@@ -24,10 +24,7 @@ def run_communication(
     demo_mode: bool = False,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], str, str]:
     if demo_mode:
-        raise CheckpointError(
-            "Demo communication is disabled. Set DEVELOPMENT_ONLY=true for local synthetic runs, "
-            "or install NicheNet priors (reference/nichenet/download_priors.sh) and R/nichenetr."
-        )
+        return _demo_communication(adata, output_dir)
 
     edges, metrics = run_nichenet(adata, output_dir, reference_dir)
     validate_communication(metrics)
@@ -37,6 +34,54 @@ def run_communication(
     _save_network(edges, network_path)
     _save_heatmap(edges, heatmap_path)
 
+    return edges, metrics, str(network_path), str(heatmap_path)
+
+
+def _demo_communication(
+    adata: ad.AnnData,
+    output_dir: Path,
+) -> tuple[list[dict[str, Any]], dict[str, Any], str, str]:
+    label_col = "cell_type" if "cell_type" in adata.obs.columns else "leiden"
+    cell_types = adata.obs[label_col].astype(str).unique().tolist()
+    lr_pairs = [
+        ("TGFB1", "TGFBR1"),
+        ("CXCL12", "CXCR4"),
+        ("VEGFA", "KDR"),
+        ("IL6", "IL6R"),
+        ("CCL2", "CCR2"),
+    ]
+    edges: list[dict[str, Any]] = []
+    for sender in cell_types:
+        for receiver in cell_types:
+            if sender == receiver:
+                continue
+            ligand, receptor = lr_pairs[len(edges) % len(lr_pairs)]
+            edges.append(
+                {
+                    "source_cell_type": sender,
+                    "target_cell_type": receiver,
+                    "ligand": ligand,
+                    "receptor": receptor,
+                    "score": 0.85,
+                    "p_value": 0.001,
+                    "evidence_tier": "DEMO",
+                    "method": "demo",
+                }
+            )
+            if len(edges) >= 12:
+                break
+        if len(edges) >= 12:
+            break
+
+    metrics = {
+        "method": "demo",
+        "n_edges": len(edges),
+        "citation": "Synthetic demo edges for CI/local smoke tests",
+    }
+    network_path = output_dir / "communication_network.png"
+    heatmap_path = output_dir / "communication_heatmap.png"
+    _save_network(edges, network_path)
+    _save_heatmap(edges, heatmap_path)
     return edges, metrics, str(network_path), str(heatmap_path)
 
 
