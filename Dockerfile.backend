@@ -10,13 +10,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcurl4-openssl-dev \
     libssl-dev \
     libxml2-dev \
+    libuv1-dev \
     r-base \
     r-base-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # R packages for NicheNet bridge (nichenetr from GitHub — CRAN may lag on new R versions)
+ENV USE_BUNDLED_LIBUV=1
 RUN R -e "install.packages(c('remotes','jsonlite','dplyr'), repos='https://cloud.r-project.org')" \
-    && R -e "remotes::install_github('saeyslab/nichenetr', upgrade='never')"
+    && R -e "remotes::install_github('saeyslab/nichenetr', upgrade='never', dependencies=TRUE)"
 
 COPY backend/requirements.txt ./backend/
 RUN pip install --no-cache-dir -r backend/requirements.txt greenlet>=3.1.0
