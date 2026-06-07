@@ -5,19 +5,25 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    cmake \
     curl \
+    libfontconfig1-dev \
+    libfreetype6-dev \
     libhdf5-dev \
     libcurl4-openssl-dev \
+    libnlopt-dev \
+    libpng-dev \
     libssl-dev \
-    libxml2-dev \
     libuv1-dev \
+    libxml2-dev \
+    pkg-config \
     r-base \
     r-base-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # R packages for NicheNet bridge (nichenetr from GitHub — CRAN may lag on new R versions)
 ENV USE_BUNDLED_LIBUV=1
-RUN R -e "install.packages(c('remotes','jsonlite','dplyr'), repos='https://cloud.r-project.org')" \
+RUN R -e "install.packages(c('remotes','jsonlite','dplyr','fs'), repos='https://cloud.r-project.org')" \
     && R -e "remotes::install_github('saeyslab/nichenetr', upgrade='never', dependencies=TRUE)"
 
 COPY backend/requirements.txt ./backend/

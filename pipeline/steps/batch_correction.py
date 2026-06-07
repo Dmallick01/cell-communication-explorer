@@ -26,25 +26,27 @@ def run_batch_correction(
 
     import scanpy as sc
 
-    sc.pp.normalize_total(adata, target_sum=1e4)
-    sc.pp.log1p(adata)
-    sc.pp.highly_variable_genes(adata, n_top_genes=2000, batch_key=batch_key)
-    adata = adata[:, adata.var.highly_variable].copy()
-    sc.pp.scale(adata, max_value=10)
-    sc.tl.pca(adata, n_comps=30)
+    work = adata.copy()
+    sc.pp.normalize_total(work, target_sum=1e4)
+    sc.pp.log1p(work)
+    work.uns["log1p"] = {"base": None}
+    sc.pp.highly_variable_genes(work, n_top_genes=2000, batch_key=batch_key)
+    hvg = work[:, work.var.highly_variable].copy()
+    sc.pp.scale(hvg, max_value=10)
+    sc.tl.pca(hvg, n_comps=30)
 
     import harmonypy as hm
 
-    ho = hm.run_harmony(adata.obsm["X_pca"], adata.obs, batch_key)
-    adata.obsm["X_pca_harmony"] = ho.Z_corr.T
+    ho = hm.run_harmony(hvg.obsm["X_pca"], hvg.obs, batch_key)
+    work.obsm["X_pca_harmony"] = ho.Z_corr.T
 
     metrics = {
         "method": "harmony",
         "batch_key": batch_key,
-        "n_batches": int(adata.obs[batch_key].nunique()),
-        "n_hvg": int(adata.n_vars),
+        "n_batches": int(work.obs[batch_key].nunique()),
+        "n_hvg": int(hvg.n_vars),
     }
-    return adata, metrics
+    return work, metrics
 
 
 def _demo_pca(adata: ad.AnnData, n_comps: int = 30) -> None:
