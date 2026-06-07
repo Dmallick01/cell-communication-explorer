@@ -8,6 +8,8 @@ venv/
 # Data & results
 data/
 *.h5ad
+reference/nichenet/*.csv
+reference/nichenet/weighted_networks/
 
 # Environment
 .env
