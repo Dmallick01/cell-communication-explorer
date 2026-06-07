@@ -64,17 +64,29 @@ def run_nichenet(
 
     priors_dir = reference_dir / "nichenet"
     r_script = Path(__file__).parent / "nichenet_run.R"
-    cell_types = list(adata.obs["cell_type"].unique())
-    all_edges: list[dict[str, Any]] = []
+    counts = adata.obs["cell_type"].astype(str).value_counts()
+    cell_types = counts[counts >= 10].index.tolist()
+    if len(cell_types) < 2:
+        raise CheckpointError(
+            "Need at least two cell types with ≥10 cells for NicheNet. "
+            f"Found: {counts.to_dict()}"
+        )
 
-    pairs_done = 0
+    all_edges: list[dict[str, Any]] = []
+    pairs_with_edges = 0
+    pairs_attempted = 0
+    max_attempts = top_sender_receiver_pairs * 5
+
     for sender in cell_types:
+        if pairs_with_edges >= top_sender_receiver_pairs or pairs_attempted >= max_attempts:
+            break
         for receiver in cell_types:
             if sender == receiver:
                 continue
-            if pairs_done >= top_sender_receiver_pairs:
+            if pairs_with_edges >= top_sender_receiver_pairs or pairs_attempted >= max_attempts:
                 break
 
+            pairs_attempted += 1
             out_json = work / f"edges_{sender}_{receiver}.json"
             cmd = [
                 "Rscript",
@@ -105,8 +117,9 @@ def run_nichenet(
                 edges = json.loads(out_json.read_text())
                 if isinstance(edges, dict):
                     edges = [edges]
-                all_edges.extend(edges)
-                pairs_done += 1
+                if edges:
+                    all_edges.extend(edges)
+                    pairs_with_edges += 1
 
     if not all_edges:
         raise CheckpointError(
@@ -129,7 +142,8 @@ def run_nichenet(
         "citation": "Browaeys et al., Nat Methods 2020",
         "n_edges": len(ranked),
         "n_cell_types": len(cell_types),
-        "pairs_analyzed": pairs_done,
+        "pairs_analyzed": pairs_attempted,
+        "pairs_with_edges": pairs_with_edges,
         "priors_dir": str(priors_dir),
     }
     return ranked[:100], metrics
