@@ -34,11 +34,8 @@ export default function AppShell({
   const [projectMeta, setProjectMeta] = useState<string | undefined>();
 
   useEffect(() => {
-    if (!projectId) {
-      setProjectTitle(undefined);
-      setProjectMeta(undefined);
-      return;
-    }
+    if (!projectId) return;
+
     getJobResults(projectId)
       .then((r) => {
         setProjectTitle(r.project_name || `Analysis ${projectId.slice(0, 8)}`);

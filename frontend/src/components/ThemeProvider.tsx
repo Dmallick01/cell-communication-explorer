@@ -13,15 +13,17 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
+function readStoredTheme(): Theme {
+  if (typeof window === "undefined") return "light";
+  return localStorage.getItem("cce-theme") === "dark" ? "dark" : "light";
+}
+
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>(readStoredTheme);
 
   useEffect(() => {
-    const saved = localStorage.getItem("cce-theme") as Theme | null;
-    const initial = saved === "dark" ? "dark" : "light";
-    setTheme(initial);
-    document.documentElement.setAttribute("data-theme", initial);
-  }, []);
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
 
   const toggle = () => {
     setTheme((t) => {
