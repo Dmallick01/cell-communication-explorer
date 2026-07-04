@@ -1,7 +1,7 @@
 # Deployment Guide
 
 Frontend: **Vercel** (already live)  
-Backend: **Fly.io** (recommended) or **Render**
+Backend: **Local machine** (free, recommended) · **Render** · **Fly.io** (paid)
 
 ## Prerequisites
 
@@ -11,7 +11,52 @@ Backend: **Fly.io** (recommended) or **Render**
 
 ---
 
-## Option A: Fly.io (recommended)
+## Option A: Local machine + Cloudflare Tunnel (free, recommended)
+
+Runs on your Mac/Linux box with **no job time limits** and **no cloud billing**. Expose to the internet so the Vercel frontend works from anywhere.
+
+### 1. Prerequisites (one time)
+
+```bash
+bash reference/nichenet/download_priors.sh   # if not done
+# R + nichenetr on host OR use docker-compose.prod.yml instead
+```
+
+### 2. Start API
+
+```bash
+bash scripts/run-local-stack.sh
+# or foreground: bash scripts/start-local-api.sh
+```
+
+### 3. Expose to internet (free HTTPS)
+
+```bash
+brew install cloudflared   # first time only
+bash scripts/expose-api.sh
+```
+
+Copy the `https://….trycloudflare.com` URL from the tunnel output.
+
+### 4. Point Vercel frontend at your API
+
+Vercel → Project → Environment Variables:
+
+```
+NEXT_PUBLIC_API_URL=https://<your-tunnel-host>.trycloudflare.com/api/v1
+```
+
+Redeploy frontend. CORS for Vercel URLs is already in `backend/app/core/config.py`.
+
+### Notes
+
+- Keep your machine awake while jobs run; tunnel stops when `expose-api.sh` exits.
+- For a **stable URL**, use a [named Cloudflare tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) (free account).
+- Docker alternative: `docker compose -f docker-compose.prod.yml up --build`
+
+---
+
+## Option B: Fly.io
 
 ### 1. Install CLI and authenticate
 
@@ -62,7 +107,7 @@ Redeploy frontend.
 
 ---
 
-## Option B: Render
+## Option C: Render
 
 1. Connect GitHub repo in Render dashboard
 2. New **Blueprint** → point at `render.yaml`

@@ -44,8 +44,6 @@ if (file.exists(lr_rds)) {
   gr_network <- read.csv(file.path(priors_dir, "weighted_networks", "gr_network.csv"), check.names = FALSE)
 }
 
-expressed_genes <- rownames(expr)[rowMeans(expr) > 0]
-
 sender_cells <- rownames(meta)[meta$cell_type == sender_type]
 receiver_cells <- rownames(meta)[meta$cell_type == receiver_type]
 
@@ -53,26 +51,37 @@ if (length(sender_cells) < 10 || length(receiver_cells) < 10) {
   stop(paste("Insufficient cells for", sender_type, "or", receiver_type))
 }
 
-ligands <- lr_network %>% filter(from %in% expressed_genes) %>% pull(from) %>% unique()
-receptors <- lr_network %>% filter(to %in% expressed_genes) %>% pull(to) %>% unique()
+sender_expr <- expr[, sender_cells, drop = FALSE]
+receiver_expr <- expr[, receiver_cells, drop = FALSE]
+
+expressed_sender <- rownames(sender_expr)[rowMeans(sender_expr) > 0]
+background_expressed_genes <- rownames(receiver_expr)[rowMeans(receiver_expr) > 0]
+
+if (length(background_expressed_genes) < 20) {
+  stop("No expressed ligands or receptors in LR network")
+}
+
+# Geneset must differ from background — use top variable genes in receiver
+receiver_vars <- apply(receiver_expr[background_expressed_genes, , drop = FALSE], 1, var)
+geneset_oi <- names(sort(receiver_vars, decreasing = TRUE))[
+  seq_len(min(200L, length(receiver_vars)))
+]
+
+ligands <- lr_network %>% filter(from %in% expressed_sender) %>% pull(from) %>% unique()
+receptors <- lr_network %>% filter(to %in% background_expressed_genes) %>% pull(to) %>% unique()
 
 if (length(ligands) == 0 || length(receptors) == 0) {
   stop("No expressed ligands or receptors in LR network")
 }
 
 ligand_activities <- predict_ligand_activities(
-  geneset = expressed_genes,
-  background_expressed_genes = expressed_genes,
+  geneset = geneset_oi,
+  background_expressed_genes = background_expressed_genes,
   ligand_target_matrix = ligand_target,
   potential_ligands = ligands
 )
 
 best_ligands <- ligand_activities %>% arrange(desc(pearson)) %>% head(20) %>% pull(test_ligand)
-
-ligand_target_links <- predict_ligand_targets(
-  best_ligands, expressed_genes, expressed_genes, ligand_target,
-  ltf_cutoff = 0
-)
 
 edges <- lr_network %>%
   filter(from %in% best_ligands, to %in% receptors) %>%

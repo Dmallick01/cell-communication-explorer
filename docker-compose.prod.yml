@@ -1,0 +1,23 @@
+# Production API on your machine — free, no job time limits.
+# Frontend stays on Vercel; expose this API with scripts/expose-api.sh (Cloudflare Tunnel).
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PIPELINE_DEMO_MODE=false
+      - DEVELOPMENT_ONLY=false
+      - MPLBACKEND=Agg
+      - PYTHONPATH=/app
+      - DATA_DIR=/app/data
+      - CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000","https://frontend-sigma-nine-39.vercel.app","https://frontend-dmallick01s-projects.vercel.app","https://frontend-git-main-dmallick01s-projects.vercel.app"]
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8g

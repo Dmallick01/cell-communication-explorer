@@ -1,33 +1,29 @@
 # Production API image: FastAPI + Scanpy + Harmony + CellTypist + NicheNet (R)
-FROM python:3.12-slim
+# rocker/r2u provides precompiled R binaries — avoids 60+ min source compiles on slim.
+FROM rocker/r2u:noble
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    cmake \
+    python3 \
+    python3-pip \
+    python3-venv \
     curl \
-    libfontconfig1-dev \
-    libfreetype6-dev \
     libhdf5-dev \
     libcurl4-openssl-dev \
-    libnlopt-dev \
-    libpng-dev \
     libssl-dev \
-    libuv1-dev \
     libxml2-dev \
-    pkg-config \
-    r-base \
-    r-base-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3 /usr/local/bin/python \
+    && ln -sf /usr/bin/pip3 /usr/local/bin/pip
 
-# R packages for NicheNet bridge (nichenetr from GitHub — CRAN may lag on new R versions)
-ENV USE_BUNDLED_LIBUV=1
-RUN R -e "install.packages(c('remotes','jsonlite','dplyr','fs'), repos='https://cloud.r-project.org')" \
-    && R -e "remotes::install_github('saeyslab/nichenetr', upgrade='never', dependencies=TRUE)"
+# NicheNet R bridge — binary CRAN deps via r2u, nichenetr from GitHub
+RUN install2.r --error --skipmissing remotes jsonlite dplyr \
+    && R -e "remotes::install_github('saeyslab/nichenetr', upgrade='never', dependencies=TRUE)" \
+    && Rscript -e 'stopifnot(requireNamespace("nichenetr", quietly=TRUE)); cat("nichenetr", as.character(packageVersion("nichenetr")), "\n")'
 
 COPY backend/requirements.txt ./backend/
-RUN pip install --no-cache-dir -r backend/requirements.txt greenlet>=3.1.0
+RUN pip install --no-cache-dir --break-system-packages -r backend/requirements.txt greenlet>=3.1.0
 
 COPY backend/ ./backend/
 COPY pipeline/ ./pipeline/
