@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -10,6 +12,13 @@ import anndata as ad
 import pandas as pd
 
 from pipeline.utils.checkpoints import CheckpointError
+
+
+def _pair_output_path(work: Path, sender: str, receiver: str) -> Path:
+    """Safe filename — CellTypist labels may contain '/' which breaks Path joins."""
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", f"{sender}__{receiver}").strip("_")[:120]
+    digest = hashlib.sha1(f"{sender}\0{receiver}".encode()).hexdigest()[:10]
+    return work / f"edges_{slug}_{digest}.json"
 
 
 def nichenet_available(reference_dir: Path) -> tuple[bool, str]:
@@ -87,7 +96,7 @@ def run_nichenet(
                 break
 
             pairs_attempted += 1
-            out_json = work / f"edges_{sender}_{receiver}.json"
+            out_json = _pair_output_path(work, sender, receiver)
             cmd = [
                 "Rscript",
                 str(r_script),
