@@ -3,7 +3,9 @@ node_modules/
 __pycache__/
 *.py[cod]
 .venv/
+.venv311/
 venv/
+backend/.venv311/
 
 # Data & results
 data/
